@@ -3,9 +3,9 @@
   "port": 9527,
   "workspace": "~/workspace",
   "repoRoots": [],
-  "knowledge": "~/feature-hub-knowledge",
-  "archive": "~/feature-hub-archive",
-  "tools": "~/feature-hub-toolbox",
+  "knowledge": "~/knowledge",
+  "archive": "~/workspace/archive",
+  "tools": "~/toolbox",
   "taskPattern": "^\\d{2}-.+",
   "textExtensions": [
     ".md",

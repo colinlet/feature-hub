@@ -27,8 +27,8 @@
 | 仓库（建议） | 作用 |
 | --- | --- |
 | `feature-hub`（本仓） | 产品壳：Web UI + 本地 HTTP 服务 |
-| `feature-hub-knowledge` | 领域知识物料 |
-| `feature-hub-toolbox` | 工具箱物料 |
+| `knowledge`（如 `~/knowledge`） | 领域知识物料 |
+| `toolbox`（如 `~/toolbox`） | 工具箱物料 |
 
 ## Requirements
 
@@ -46,11 +46,13 @@ cd feature-hub
 cp hub.config.example.json hub.config.json
 
 # 2) 编辑路径：workspace 必须已存在；archive 可先建空目录
-#    推荐与物料仓对齐，例如：
-#      knowledge → ~/feature-hub-knowledge
-#      tools     → ~/feature-hub-toolbox
+#    默认约定：
+#      workspace → ~/workspace
+#      knowledge → ~/knowledge
+#      archive   → ~/workspace/archive
+#      tools     → ~/toolbox
 #    knowledge / tools 目录可稍后创建或 clone 物料仓后再挂
-mkdir -p ~/workspace ~/feature-hub-archive
+mkdir -p ~/workspace ~/workspace/archive ~/knowledge ~/toolbox
 
 # 3) 启动（默认 http://127.0.0.1:9527 ）
 ./start-feature-hub.sh

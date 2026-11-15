@@ -91,7 +91,7 @@ DIR_KEYS = ("workspace", "knowledge", "archive", "tools")
 DEFAULT_DIRS: dict[str, str] = {
     "workspace": "~/workspace",
     "knowledge": "~/knowledge",
-    "archive": "~/archive",
+    "archive": "~/workspace/archive",
     "tools": "~/toolbox",
 }
 
