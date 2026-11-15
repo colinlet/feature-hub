@@ -1,0 +1,22 @@
+# Local machine config (use hub.config.example.json as template)
+hub.config.json
+
+# Local VS Code / Cursor workspace at repo root
+/main.code-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Local task index (generated / machine-specific)
+web/data/tasks.json
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/

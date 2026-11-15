@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature Hub</title>
+    <link rel="stylesheet" href="/vendor/github-markdown-light.min.css" />
+    <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <header class="topbar">
+        <div class="topbar-brand">
+          <a class="brand" href="#/" id="brandLink">Feature Hub</a>
+          <p class="top-task-meta" id="topTaskMeta" aria-live="polite"></p>
+        </div>
+        <div class="top-nav-actions" id="topNavActions" role="toolbar" data-i18n-aria="nav.toolbar" aria-label="任务操作" hidden>
+          <button
+            type="button"
+            class="btn compact nav-filter is-active"
+            id="filterAllBtn"
+            data-filter="all"
+            data-i18n="nav.all"
+          >
+            全部
+          </button>
+          <button
+            type="button"
+            class="btn compact nav-filter"
+            id="filterActiveBtn"
+            data-filter="active"
+            data-i18n="nav.active"
+          >
+            进行中
+          </button>
+          <button
+            type="button"
+            class="btn compact nav-filter"
+            id="filterDoneBtn"
+            data-filter="done"
+            data-i18n="nav.done"
+          >
+            已完成
+          </button>
+          <button type="button" class="btn primary compact" id="newTaskBtn" data-i18n="nav.new">新建</button>
+          <button type="button" class="btn ghost compact" id="refreshIndexBtn" data-i18n="nav.refresh">
+            刷新
+          </button>
+        </div>
+        <div class="top-actions">
+          <div class="top-search">
+            <input
+              id="entryFilter"
+              type="search"
+              data-i18n-placeholder="search.placeholder"
+              placeholder="搜索 task / 文件名"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="locale-switch" role="group" data-i18n-aria="locale.switch" aria-label="语言">
+            <button type="button" class="locale-btn" data-locale="zh-CN" data-i18n="locale.zh">中文</button>
+            <button type="button" class="locale-btn" data-locale="en" data-i18n="locale.en">EN</button>
+          </div>
+          <button
+            type="button"
+            class="icon-btn"
+            id="settingsBtn"
+            data-i18n-title="settings.open"
+            data-i18n-aria="settings.open"
+            title="设置"
+            aria-label="设置"
+          >
+            ⚙
+          </button>
+        </div>
+      </header>
+
+      <nav class="nav-bar" id="navBar" data-i18n-aria="nav.aria" aria-label="导航路径">
+        <div class="home-heading" id="homeHeading" hidden>
+          <h1 class="home-heading-title" data-i18n="home.all">全部task</h1>
+        </div>
+        <div class="crumbs" id="crumbs"></div>
+      </nav>
+
+      <section class="view" id="view-browse" hidden>
+        <div class="browse-page" id="browsePage">
+          <header class="browse-header" id="browseHeader" hidden></header>
+          <div class="file-list" id="fileList"></div>
+        </div>
+      </section>
+
+      <section class="view view-read" id="view-read" hidden>
+        <aside class="outline" id="outlinePane">
+          <div class="outline-head">
+            <button
+              type="button"
+              class="outline-toggle"
+              id="outlineToggle"
+              data-i18n-title="reader.outlineCollapse"
+              data-i18n-aria="reader.outlineCollapse"
+              title="折叠目录"
+              aria-label="折叠目录"
+              aria-expanded="true"
+              aria-controls="outline"
+            >
+              ‹
+            </button>
+            <div class="outline-title" data-i18n="reader.outline">目录</div>
+          </div>
+          <nav id="outline" data-i18n-aria="reader.outline" aria-label="目录"></nav>
+        </aside>
+        <article class="content-pane" id="contentPane">
+          <div class="reader markdown-body" id="reader"></div>
+        </article>
+        <div class="float-nav" id="floatNav" hidden>
+          <button
+            type="button"
+            class="float-nav-btn"
+            id="toTopBtn"
+            data-i18n-title="reader.toTop"
+            data-i18n-aria="reader.toTop"
+            title="回到顶部"
+            aria-label="回到顶部"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            class="float-nav-btn"
+            id="toBottomBtn"
+            data-i18n-title="reader.toBottom"
+            data-i18n-aria="reader.toBottom"
+            title="回到底部"
+            aria-label="回到底部"
+          >
+            ↓
+          </button>
+        </div>
+      </section>
+
+      <footer class="app-footer" id="appFooter">
+        <div class="app-footer-inner">
+          <p class="app-footer-tagline" data-i18n="footer.tagline">
+            用 AI 把事做完，把方法留下.
+          </p>
+          <p class="app-footer-brand" id="appFooterBrand">Feature Hub · 2026</p>
+        </div>
+      </footer>
+    </div>
+
+    <div class="settings-overlay" id="settingsOverlay" hidden>
+      <div
+        class="settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settingsTitle"
+      >
+        <header class="settings-header">
+          <h2 id="settingsTitle" data-i18n="settings.title">设置</h2>
+          <button
+            type="button"
+            class="icon-btn"
+            id="settingsCloseBtn"
+            data-i18n-title="settings.close"
+            data-i18n-aria="settings.close"
+            title="关闭"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </header>
+        <form class="settings-form" id="settingsForm">
+          <p class="settings-hint" data-i18n="settings.hint">
+            配置本地目录。Workspace 必须已存在；其余目录可不存在，可先保存路径。
+          </p>
+          <div class="settings-fields" id="settingsFields"></div>
+          <p class="settings-error" id="settingsError" hidden></p>
+          <footer class="settings-footer">
+            <button type="button" class="btn ghost" id="settingsCancelBtn" data-i18n="settings.cancel">
+              取消
+            </button>
+            <button type="submit" class="btn primary" id="settingsSaveBtn" data-i18n="settings.save">
+              保存
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <div class="settings-overlay" id="newTaskOverlay" hidden>
+      <div
+        class="settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="newTaskTitle"
+      >
+        <header class="settings-header">
+          <h2 id="newTaskTitle" data-i18n="newTask.title">新建 task</h2>
+          <button
+            type="button"
+            class="icon-btn"
+            id="newTaskCloseBtn"
+            data-i18n-title="newTask.close"
+            data-i18n-aria="newTask.close"
+            title="关闭"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </header>
+        <form class="settings-form" id="newTaskForm">
+          <div class="settings-fields">
+            <div class="settings-field">
+              <label for="newTaskName" data-i18n="newTask.name">任务名</label>
+              <input
+                id="newTaskName"
+                name="title"
+                type="text"
+                required
+                maxlength="120"
+                spellcheck="false"
+                autocomplete="off"
+                data-i18n-placeholder="newTask.namePlaceholder"
+                placeholder="例如：接入支付回调"
+              />
+              <div class="field-status" id="newTaskPreview">预览：—</div>
+            </div>
+            <div class="settings-field">
+              <label data-i18n="newTask.repos">关联代码仓库</label>
+              <div class="field-help" data-i18n="newTask.reposHelp">可选，支持添加多个本地目录</div>
+              <div class="repo-chips" id="newTaskRepos"></div>
+              <div class="field-row">
+                <input
+                  id="newTaskRepo"
+                  name="repo"
+                  type="text"
+                  spellcheck="false"
+                  autocomplete="off"
+                  data-i18n-placeholder="newTask.reposPlaceholder"
+                  placeholder="粘贴路径后回车添加，或浏览选择"
+                />
+                <button
+                  type="button"
+                  class="btn ghost nowrap"
+                  id="newTaskBrowseBtn"
+                  data-i18n="newTask.browse"
+                >
+                  浏览…
+                </button>
+              </div>
+              <div class="field-status" id="newTaskRepoStatus"></div>
+            </div>
+          </div>
+          <p class="settings-error" id="newTaskError" hidden></p>
+          <footer class="settings-footer">
+            <button type="button" class="btn ghost" id="newTaskCancelBtn" data-i18n="newTask.cancel">
+              取消
+            </button>
+            <button type="submit" class="btn primary" id="newTaskSaveBtn" data-i18n="newTask.create">
+              创建
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <div class="settings-overlay" id="taskWsOverlay" hidden>
+      <div
+        class="settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="taskWsTitle"
+      >
+        <header class="settings-header">
+          <h2 id="taskWsTitle" data-i18n="taskWs.title">编辑 Workspace</h2>
+          <button
+            type="button"
+            class="icon-btn"
+            id="taskWsCloseBtn"
+            data-i18n-title="taskWs.close"
+            data-i18n-aria="taskWs.close"
+            title="关闭"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </header>
+        <form class="settings-form" id="taskWsForm">
+          <p class="settings-hint" data-i18n="taskWs.hint">
+            管理 main.code-workspace 中的 folders。任务根目录不可移除。
+          </p>
+          <div class="settings-fields">
+            <div class="settings-field">
+              <label data-i18n="taskWs.folders">Folders</label>
+              <div class="repo-chips" id="taskWsFolders"></div>
+              <div class="field-row">
+                <button
+                  type="button"
+                  class="btn ghost nowrap"
+                  id="taskWsBrowseBtn"
+                  data-i18n="taskWs.add"
+                >
+                  添加文件夹…
+                </button>
+                <button
+                  type="button"
+                  class="btn ghost nowrap"
+                  id="taskWsPoolBtn"
+                  data-i18n="taskWs.addPool"
+                  hidden
+                >
+                  从仓库集添加
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="settings-error" id="taskWsError" hidden></p>
+          <footer class="settings-footer">
+            <button type="button" class="btn ghost" id="taskWsCancelBtn" data-i18n="taskWs.cancel">
+              取消
+            </button>
+            <button type="submit" class="btn primary" id="taskWsSaveBtn" data-i18n="taskWs.save">
+              保存
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <div class="settings-overlay" id="fsPickerOverlay" hidden>
+      <div
+        class="settings-dialog fs-picker-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fsPickerTitle"
+      >
+        <header class="settings-header">
+          <h2 id="fsPickerTitle" data-i18n="fs.title">选择文件夹（可多选）</h2>
+          <button
+            type="button"
+            class="icon-btn"
+            id="fsPickerCloseBtn"
+            data-i18n-title="settings.close"
+            data-i18n-aria="settings.close"
+            title="关闭"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </header>
+        <div class="settings-form fs-picker-body">
+          <div class="fs-picker-toolbar">
+            <button type="button" class="btn ghost compact" id="fsPickerUpBtn" data-i18n="fs.up">上级</button>
+            <input
+              id="fsPickerPath"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              data-i18n-aria="fs.pathAria"
+              aria-label="当前路径"
+            />
+            <button type="button" class="btn ghost compact" id="fsPickerGoBtn" data-i18n="fs.go">前往</button>
+          </div>
+          <div class="fs-picker-shortcuts" id="fsPickerShortcuts"></div>
+          <div class="fs-picker-list" id="fsPickerList"></div>
+          <p class="settings-error" id="fsPickerError" hidden></p>
+          <footer class="settings-footer">
+            <button type="button" class="btn ghost" id="fsPickerCancelBtn" data-i18n="fs.cancel">取消</button>
+            <button type="button" class="btn primary" id="fsPickerConfirmBtn" data-i18n="fs.confirm">
+              选择此目录
+            </button>
+          </footer>
+        </div>
+      </div>
+    </div>
+
+    <script src="/vendor/marked.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+    <script src="/vendor/highlight.min.js"></script>
+    <script src="/js/i18n.js"></script>
+    <script src="/js/xmind.js"></script>
+    <script src="/js/mindmap.js"></script>
+    <script src="/js/fs-picker.js"></script>
+    <script src="/js/settings.js"></script>
+    <script src="/js/new-task.js"></script>
+    <script src="/js/task-workspace.js"></script>
+    <script src="/js/app.js"></script>
+  </body>
+</html>

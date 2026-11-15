@@ -1,0 +1,133 @@
+{
+  "host": "127.0.0.1",
+  "port": 9527,
+  "workspace": "~/workspace",
+  "repoRoots": [],
+  "knowledge": "~/feature-hub-knowledge",
+  "archive": "~/feature-hub-archive",
+  "tools": "~/feature-hub-toolbox",
+  "taskPattern": "^\\d{2}-.+",
+  "textExtensions": [
+    ".md",
+    ".markdown",
+    ".mdown",
+    ".mkd",
+    ".mdx",
+    ".txt",
+    ".text",
+    ".json",
+    ".code-workspace",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".csv",
+    ".log",
+    ".py",
+    ".js",
+    ".ts",
+    ".css",
+    ".html",
+    ".sh",
+    ".rs",
+    ".go",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h"
+  ],
+  "viewers": {
+    ".md": {
+      "type": "markdown"
+    },
+    ".markdown": {
+      "type": "markdown"
+    },
+    ".mdown": {
+      "type": "markdown"
+    },
+    ".mkd": {
+      "type": "markdown"
+    },
+    ".mdx": {
+      "type": "markdown"
+    },
+    ".json": {
+      "type": "json"
+    },
+    ".code-workspace": {
+      "type": "json"
+    },
+    ".yaml": {
+      "type": "code",
+      "language": "yaml"
+    },
+    ".yml": {
+      "type": "code",
+      "language": "yaml"
+    },
+    ".toml": {
+      "type": "code",
+      "language": "toml"
+    },
+    ".py": {
+      "type": "code",
+      "language": "python"
+    },
+    ".js": {
+      "type": "code",
+      "language": "javascript"
+    },
+    ".ts": {
+      "type": "code",
+      "language": "typescript"
+    },
+    ".css": {
+      "type": "code",
+      "language": "css"
+    },
+    ".html": {
+      "type": "code",
+      "language": "xml"
+    },
+    ".sh": {
+      "type": "code",
+      "language": "bash"
+    },
+    ".rs": {
+      "type": "code",
+      "language": "rust"
+    },
+    ".go": {
+      "type": "code",
+      "language": "go"
+    },
+    ".java": {
+      "type": "code",
+      "language": "java"
+    },
+    ".c": {
+      "type": "code",
+      "language": "c"
+    },
+    ".cpp": {
+      "type": "code",
+      "language": "cpp"
+    },
+    ".h": {
+      "type": "code",
+      "language": "c"
+    },
+    ".txt": {
+      "type": "plain"
+    },
+    ".text": {
+      "type": "plain"
+    },
+    ".csv": {
+      "type": "plain"
+    },
+    ".log": {
+      "type": "plain"
+    }
+  }
+}

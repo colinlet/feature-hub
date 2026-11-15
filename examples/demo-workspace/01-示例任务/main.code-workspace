@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {
+      "name": "示例任务",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "git.autoRepositoryDetection": "openEditors",
+    "git.repositoryScanMaxDepth": 0,
+    "git.autorefresh": false,
+    "git.autofetch": false,
+    "search.followSymlinks": false,
+    "files.watcherExclude": {
+      "**/target/**": true,
+      "**/vendor/**": true,
+      "**/node_modules/**": true,
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true
+    },
+    "search.exclude": {
+      "**/target": true,
+      "**/vendor": true,
+      "**/node_modules": true
+    },
+    "files.exclude": {
+      "**/target": true
+    }
+  }
+}
