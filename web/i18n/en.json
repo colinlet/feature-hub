@@ -111,6 +111,8 @@
   "reader.toTop": "Back to top",
   "reader.toBottom": "Jump to bottom",
   "reader.meta": "{chars} chars · {minutes} min read",
+  "reader.frontmatterSummary": "Frontmatter · {count} fields ({keys})",
+  "reader.frontmatterRaw": "Frontmatter · YAML",
   "reader.jsonFail": "Invalid JSON; showing raw text",
   "reader.mermaidMissing": "Mermaid failed to load: {message}",
   "reader.mermaidFail": "Mermaid render failed: {message}",

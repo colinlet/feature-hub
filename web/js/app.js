@@ -1013,6 +1013,137 @@
     }
   }
 
+  /** Strip BOM and split leading YAML frontmatter from Markdown body. */
+  function parseMarkdownFrontmatter(content) {
+    let src = String(content || "");
+    if (src.charCodeAt(0) === 0xfeff) src = src.slice(1);
+    const match = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+    if (!match) return { body: src, raw: null, fields: null };
+    const raw = match[1];
+    return {
+      body: src.slice(match[0].length),
+      raw,
+      fields: parseFrontmatterFields(raw),
+    };
+  }
+
+  function unquoteYamlScalar(value) {
+    const text = String(value ?? "");
+    if (
+      (text.startsWith('"') && text.endsWith('"')) ||
+      (text.startsWith("'") && text.endsWith("'"))
+    ) {
+      return text.slice(1, -1);
+    }
+    return text;
+  }
+
+  function dedentYamlBlock(lines) {
+    const indents = lines
+      .filter((line) => line.trim().length)
+      .map((line) => (line.match(/^[ \t]*/)?.[0] || "").length);
+    const trim = indents.length ? Math.min(...indents) : 0;
+    return lines
+      .map((line) => (trim ? line.slice(trim) : line))
+      .join("\n")
+      .replace(/\s+$/g, "");
+  }
+
+  /**
+   * Best-effort flat YAML field parse for common frontmatter.
+   * Returns null when structure is nested/unsupported — caller shows raw YAML.
+   */
+  function parseFrontmatterFields(raw) {
+    const lines = String(raw || "").split(/\r?\n/);
+    const fields = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (!line.trim() || /^\s*#/.test(line)) {
+        i += 1;
+        continue;
+      }
+      if (/^\s/.test(line)) return null;
+      const km = line.match(/^([A-Za-z0-9_.-]+)\s*:\s*(.*)$/);
+      if (!km) return null;
+      const key = km[1];
+      const rest = km[2];
+      if (/^[>|][+-]?$/.test(rest.trim())) {
+        i += 1;
+        const block = [];
+        while (i < lines.length) {
+          const next = lines[i];
+          if (next === "" || /^\s/.test(next)) {
+            block.push(next);
+            i += 1;
+            continue;
+          }
+          break;
+        }
+        fields.push({ key, value: dedentYamlBlock(block) });
+        continue;
+      }
+      fields.push({ key, value: unquoteYamlScalar(rest.trim()) });
+      i += 1;
+    }
+    return fields;
+  }
+
+  function buildFrontmatterBlock(raw, fields) {
+    const details = document.createElement("details");
+    details.className = "md-frontmatter";
+
+    const summary = document.createElement("summary");
+    summary.className = "md-frontmatter-summary";
+    if (fields && fields.length) {
+      const keys = fields.map((f) => f.key);
+      const preview = keys.slice(0, 4).join(", ");
+      summary.textContent = t("reader.frontmatterSummary", {
+        count: fields.length,
+        keys: preview,
+      });
+    } else {
+      summary.textContent = t("reader.frontmatterRaw");
+    }
+    details.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "md-frontmatter-body";
+
+    if (fields && fields.length) {
+      const table = document.createElement("table");
+      table.className = "md-frontmatter-table";
+      const tbody = document.createElement("tbody");
+      for (const field of fields) {
+        const tr = document.createElement("tr");
+        const th = document.createElement("th");
+        th.textContent = field.key;
+        const td = document.createElement("td");
+        td.textContent = field.value;
+        tr.appendChild(th);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      body.appendChild(table);
+    } else {
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.className = "language-yaml";
+      code.textContent = raw;
+      pre.appendChild(code);
+      body.appendChild(pre);
+      try {
+        hljs.highlightElement(code);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    details.appendChild(body);
+    return details;
+  }
+
   async function renderDocument(data, { preserveViewport = false } = {}) {
     const snap = preserveViewport ? captureViewport() : null;
     const root = data.root;
@@ -1023,7 +1154,10 @@
     showOutlinePane();
 
     if (viewer.type === "markdown") {
-      const rawHtml = marked.parse(data.content);
+      const { body, raw: fmRaw, fields: fmFields } = parseMarkdownFrontmatter(
+        data.content
+      );
+      const rawHtml = marked.parse(body);
       const safe = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
       readerEl.className = "reader markdown-body";
       readerEl.innerHTML = rewriteRelativeUrls(
@@ -1032,12 +1166,16 @@
         path,
         data.rootKind || currentFile?.kind || "workspace"
       );
+      if (fmRaw != null) {
+        readerEl.prepend(buildFrontmatterBlock(fmRaw, fmFields));
+      }
       readerEl.querySelectorAll("pre code").forEach((block) => {
         if (isMermaidBlock(block)) return;
+        if (block.closest(".md-frontmatter")) return;
         hljs.highlightElement(block);
       });
       buildOutlineFromReader();
-      injectReadingMeta(data.content);
+      injectReadingMeta(body);
       await renderMermaidBlocks();
     } else if (viewer.type === "json") {
       renderJsonDocument(data.content);

@@ -7,6 +7,14 @@
   "archive": "~/workspace/archive",
   "tools": "~/toolbox",
   "taskPattern": "^\\d{2}-.+",
+  "indexIgnore": [
+    "node_modules",
+    "target",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build"
+  ],
   "textExtensions": [
     ".md",
     ".markdown",

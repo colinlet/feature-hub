@@ -102,6 +102,18 @@ DIR_LABELS: dict[str, str] = {
     "tools": "工具",
 }
 
+# Directory names skipped while building the tasks index (pruned during walk).
+DEFAULT_INDEX_IGNORE_DIRS = frozenset(
+    {
+        "node_modules",
+        "target",
+        "vendor",
+        "__pycache__",
+        "dist",
+        "build",
+    }
+)
+
 
 def expand_path(raw: str) -> Path:
     return Path(os.path.expanduser(raw)).resolve()
@@ -368,6 +380,18 @@ def merge_viewers(data: dict[str, Any]) -> dict[str, dict[str, str]]:
     return viewers
 
 
+def merge_index_ignore_dirs(data: dict[str, Any]) -> frozenset[str]:
+    names = set(DEFAULT_INDEX_IGNORE_DIRS)
+    custom = data.get("indexIgnore")
+    if isinstance(custom, list):
+        for item in custom:
+            name = str(item or "").strip().strip("/").strip("\\")
+            if not name or "/" in name or "\\" in name or name in (".", ".."):
+                continue
+            names.add(name)
+    return frozenset(names)
+
+
 def resolve_viewer(
     ext: str,
     text_extensions: set[str],
@@ -411,6 +435,7 @@ def load_config(path: Path) -> dict[str, Any]:
     text_extensions |= set(viewers.keys())
 
     cursor_bin = normalize_dir_raw(data.get("cursorBin"))
+    index_ignore_dirs = merge_index_ignore_dirs(data)
 
     return {
         "host": str(data.get("host", "127.0.0.1")),
@@ -428,6 +453,7 @@ def load_config(path: Path) -> dict[str, Any]:
         "root_pattern": pattern,
         "text_extensions": text_extensions,
         "viewers": viewers,
+        "index_ignore_dirs": index_ignore_dirs,
     }
 
 
@@ -470,13 +496,10 @@ def find_root(
         base = base_for_kind(config, candidate_kind)
         if base is None or not base.is_dir():
             continue
-        candidate = (base / root_id).resolve()
-        try:
-            candidate.relative_to(base.resolve())
-        except ValueError:
-            continue
-        if candidate.is_dir():
-            return candidate, candidate_kind
+        # root_id is a single path segment; allow first-level outbound symlinks.
+        entry = base / root_id
+        if entry.is_dir():
+            return entry.resolve(), candidate_kind
     return None, None
 
 
@@ -503,22 +526,28 @@ def _dir_item_count(directory: Path) -> int:
     return len(_visible_children(directory))
 
 
-def _tree_file_stats(directory: Path) -> tuple[int, int]:
+def _tree_file_stats(
+    directory: Path,
+    ignore_dirs: frozenset[str] | None = None,
+) -> tuple[int, int]:
+    ignore = ignore_dirs if ignore_dirs is not None else DEFAULT_INDEX_IGNORE_DIRS
     md_count = 0
     file_count = 0
+    md_suffixes = {".md", ".markdown"}
     try:
-        for path in directory.rglob("*"):
-            try:
-                rel_parts = path.relative_to(directory).parts
-            except ValueError:
-                continue
-            if any(part.startswith(".") for part in rel_parts):
-                continue
-            if not path.is_file():
-                continue
-            file_count += 1
-            if path.suffix.lower() in {".md", ".markdown"}:
-                md_count += 1
+        # Prune ignored directory names while walking; rglob cannot skip subtrees.
+        for root, dirs, files in os.walk(directory, followlinks=False):
+            dirs[:] = [
+                name
+                for name in dirs
+                if not name.startswith(".") and name not in ignore
+            ]
+            for name in files:
+                if name.startswith("."):
+                    continue
+                file_count += 1
+                if Path(name).suffix.lower() in md_suffixes:
+                    md_count += 1
     except PermissionError:
         pass
     return md_count, file_count
@@ -573,7 +602,10 @@ def list_kind_roots(config: dict[str, Any], kind: str) -> list[dict[str, Any]]:
             continue
         if not root_re.match(child.name):
             continue
-        md_count, file_count = _tree_file_stats(child)
+        ignore_dirs = config.get("index_ignore_dirs")
+        if not isinstance(ignore_dirs, frozenset):
+            ignore_dirs = DEFAULT_INDEX_IGNORE_DIRS
+        md_count, file_count = _tree_file_stats(child, ignore_dirs)
         entries.append(
             {
                 "type": "dir",
