@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -869,6 +870,203 @@ def public_task_workspace(
         "folders": doc["folders"],
         "settings": doc["settings"],
         "editable": kind != "archive",
+    }
+
+
+_GIT_TIMEOUT_SEC = 3.0
+
+
+def _run_git(cwd: Path, *args: str, timeout: float = _GIT_TIMEOUT_SEC) -> tuple[int, str, str]:
+    try:
+        proc = subprocess.run(  # noqa: S603
+            ["git", "-C", str(cwd), *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
+    except subprocess.TimeoutExpired:
+        return 1, "", "git timeout"
+    except OSError as exc:
+        return 1, "", str(exc)
+
+
+def _git_status_for_folder(folder: dict[str, Any]) -> dict[str, Any]:
+    """Read-only git summary for one workspace folder entry."""
+    name = str(folder.get("name") or folder.get("path") or "")
+    path = str(folder.get("path") or "")
+    resolved = folder.get("resolved")
+    base: dict[str, Any] = {
+        "name": name,
+        "path": path,
+        "resolved": resolved,
+        "ok": bool(folder.get("ok", True)),
+        "exists": bool(folder.get("exists", False)),
+        "isGit": False,
+    }
+    if folder.get("error"):
+        base["error"] = folder["error"]
+    if not resolved or not folder.get("ok", True):
+        base["error"] = base.get("error") or "path unavailable"
+        return base
+    root = Path(str(resolved))
+    if not root.is_dir():
+        base["error"] = "directory missing"
+        return base
+
+    code, out, err = _run_git(root, "rev-parse", "--is-inside-work-tree")
+    if code != 0 or out != "true":
+        return base
+
+    base["isGit"] = True
+    code_b, branch, _ = _run_git(root, "branch", "--show-current")
+    if code_b == 0 and branch:
+        base["branch"] = branch
+        base["detached"] = False
+    else:
+        code_h, short, _ = _run_git(root, "rev-parse", "--short", "HEAD")
+        base["branch"] = short if code_h == 0 and short else "(unknown)"
+        base["detached"] = True
+
+    code_s, porcelain, err_s = _run_git(root, "status", "--porcelain")
+    if code_s != 0:
+        base["error"] = err_s or err or "git status failed"
+        base["dirty"] = None
+        base["dirtyCount"] = None
+        return base
+    lines = [ln for ln in porcelain.splitlines() if ln.strip()] if porcelain else []
+    base["dirty"] = bool(lines)
+    base["dirtyCount"] = len(lines)
+
+    code_l, branch_out, _ = _run_git(
+        root, "for-each-ref", "--format=%(refname:short)", "refs/heads/"
+    )
+    branches: list[str] = []
+    if code_l == 0 and branch_out:
+        branches = [ln.strip() for ln in branch_out.splitlines() if ln.strip()]
+    base["branches"] = branches
+    return base
+
+
+def task_git_status(
+    config: dict[str, Any],
+    root_id: str,
+    root_kind: Any = None,
+) -> dict[str, Any]:
+    """Git branch + dirty flag for each Git folder in main.code-workspace."""
+    root_path, kind = find_root(config, root_id, root_kind)
+    if root_path is None or kind is None:
+        raise ValueError("unknown folder")
+    doc = ensure_task_workspace_doc(root_path, root_id)
+    folders = list(doc.get("folders") or [])
+    results: list[dict[str, Any] | None] = [None] * len(folders)
+    if folders:
+        workers = min(6, len(folders))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(_git_status_for_folder, folder): idx
+                for idx, folder in enumerate(folders)
+            }
+            for fut in as_completed(futures):
+                idx = futures[fut]
+                try:
+                    results[idx] = fut.result()
+                except Exception as exc:  # noqa: BLE001 — surface per-folder failure
+                    folder = folders[idx]
+                    results[idx] = {
+                        "name": str(folder.get("name") or folder.get("path") or ""),
+                        "path": str(folder.get("path") or ""),
+                        "resolved": folder.get("resolved"),
+                        "ok": bool(folder.get("ok", True)),
+                        "exists": bool(folder.get("exists", False)),
+                        "isGit": False,
+                        "error": str(exc),
+                    }
+    git_folders = [r for r in results if r is not None and r.get("isGit")]
+    return {
+        "root": root_id,
+        "rootKind": kind,
+        "title": task_title_from_id(root_id),
+        "folders": git_folders,
+    }
+
+
+_BRANCH_NAME_RE = re.compile(r"^[A-Za-z0-9._/\-]+$")
+
+
+def _resolve_workspace_git_folder(
+    config: dict[str, Any],
+    root_id: str,
+    folder_path: str,
+    *,
+    root_kind: Any = None,
+) -> tuple[Path, dict[str, Any], str]:
+    """Return (repo_dir, folder_entry, kind) for a workspace folder path."""
+    root_path, kind = find_root(config, root_id, root_kind)
+    if root_path is None or kind is None:
+        raise ValueError("unknown folder")
+    doc = ensure_task_workspace_doc(root_path, root_id)
+    needle = str(folder_path or "").strip()
+    if not needle:
+        raise ValueError("path 不能为空")
+    match: dict[str, Any] | None = None
+    for folder in doc.get("folders") or []:
+        if not isinstance(folder, dict):
+            continue
+        if str(folder.get("path") or "") == needle:
+            match = folder
+            break
+        resolved = str(folder.get("resolved") or "")
+        if resolved and resolved == needle:
+            match = folder
+            break
+    if match is None:
+        raise ValueError("path 不在该任务的 Workspace folders 中")
+    resolved = match.get("resolved")
+    if not resolved:
+        raise ValueError("folder 路径不可用")
+    repo = Path(str(resolved))
+    if not repo.is_dir():
+        raise ValueError("directory missing")
+    code, out, _ = _run_git(repo, "rev-parse", "--is-inside-work-tree")
+    if code != 0 or out != "true":
+        raise ValueError("不是 Git 仓库")
+    return repo, match, kind
+
+
+def task_git_checkout(
+    config: dict[str, Any],
+    root_id: str,
+    folder_path: str,
+    branch: str,
+    *,
+    root_kind: Any = None,
+) -> dict[str, Any]:
+    """Checkout a local branch in one workspace folder. Refuses dirty trees."""
+    branch_name = str(branch or "").strip()
+    if not branch_name or branch_name.startswith("-") or not _BRANCH_NAME_RE.match(branch_name):
+        raise ValueError("无效的分支名")
+    repo, folder, kind = _resolve_workspace_git_folder(
+        config, root_id, folder_path, root_kind=root_kind
+    )
+
+    code_s, porcelain, err_s = _run_git(repo, "status", "--porcelain")
+    if code_s != 0:
+        raise ValueError(err_s or "git status failed")
+    if any(ln.strip() for ln in (porcelain or "").splitlines()):
+        raise ValueError("有未提交改动，无法切换分支")
+
+    code_c, _, err_c = _run_git(repo, "checkout", branch_name, timeout=8.0)
+    if code_c != 0:
+        raise ValueError(err_c or f"无法切换到 {branch_name}")
+
+    status = _git_status_for_folder(folder)
+    return {
+        "ok": True,
+        "root": root_id,
+        "rootKind": kind,
+        "folder": status,
     }
 
 

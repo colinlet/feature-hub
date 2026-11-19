@@ -329,6 +329,45 @@
       </div>
     </div>
 
+    <div class="settings-overlay" id="taskGitOverlay" hidden>
+      <div
+        class="settings-dialog task-git-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="taskGitTitle"
+      >
+        <header class="settings-header">
+          <h2 id="taskGitTitle" data-i18n="taskGit.title">Git 状态</h2>
+          <button
+            type="button"
+            class="icon-btn"
+            id="taskGitCloseBtn"
+            data-i18n-title="taskGit.close"
+            data-i18n-aria="taskGit.close"
+            title="关闭"
+            aria-label="关闭"
+          >
+            ×
+          </button>
+        </header>
+        <div class="settings-form task-git-body">
+          <p class="settings-hint" data-i18n="taskGit.hint">
+            仅显示 Git 仓库。点击分支可切换到本仓其它本地分支（有未提交改动时不可切换）。
+          </p>
+          <div class="task-git-list" id="taskGitList"></div>
+          <p class="settings-error" id="taskGitError" hidden></p>
+          <footer class="settings-footer">
+            <button type="button" class="btn ghost" id="taskGitRefreshBtn" data-i18n="taskGit.refresh">
+              刷新
+            </button>
+            <button type="button" class="btn primary" id="taskGitDoneBtn" data-i18n="taskGit.close">
+              关闭
+            </button>
+          </footer>
+        </div>
+      </div>
+    </div>
+
     <div class="settings-overlay" id="fsPickerOverlay" hidden>
       <div
         class="settings-dialog fs-picker-dialog"
@@ -386,6 +425,7 @@
     <script src="/js/settings.js"></script>
     <script src="/js/new-task.js"></script>
     <script src="/js/task-workspace.js"></script>
+    <script src="/js/task-git-status.js"></script>
     <script src="/js/app.js"></script>
   </body>
 </html>

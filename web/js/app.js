@@ -397,6 +397,9 @@
     const kind = normalizeKind(state.kind);
     const actions = atRoot
       ? `<div class="browse-actions">
+          <button type="button" class="btn ghost compact" data-task-git>${escapeHtml(
+            t("taskGit.button")
+          )}</button>
           ${
             kind !== "archive"
               ? `<button type="button" class="btn ghost compact" data-task-ws-edit>${escapeHtml(
@@ -417,6 +420,13 @@
 
     if (!atRoot) return;
 
+    browseHeader.querySelector("[data-task-git]")?.addEventListener("click", () => {
+      if (!window.FeatureHubTaskGit) {
+        alert(t("taskGit.loadFailed"));
+        return;
+      }
+      window.FeatureHubTaskGit.open({ root: state.root, kind });
+    });
     browseHeader.querySelector("[data-task-ws-edit]")?.addEventListener("click", () => {
       if (!window.FeatureHubTaskWorkspace) {
         alert(t("taskWs.loadFailed"));
@@ -1089,6 +1099,46 @@
     return fields;
   }
 
+  /**
+   * Turn http(s)/mailto URLs inside a frontmatter scalar into clickable anchors.
+   * Remaining text is escaped; value is not parsed as Markdown.
+   */
+  function fillFrontmatterValue(td, value) {
+    const text = String(value ?? "");
+    const re = /(https?:\/\/[^\s<>"'`]+|mailto:[^\s<>"'`]+)/gi;
+    let last = 0;
+    let match;
+    while ((match = re.exec(text)) !== null) {
+      if (match.index > last) {
+        td.appendChild(document.createTextNode(text.slice(last, match.index)));
+      }
+      let href = match[0];
+      // Trim common trailing punctuation not part of the URL
+      let trailing = "";
+      const trim = href.match(/^(.*?)([),.;:!?]+)$/);
+      if (trim && !/\/$/.test(trim[1])) {
+        href = trim[1];
+        trailing = trim[2];
+      }
+      const a = document.createElement("a");
+      a.href = href;
+      a.textContent = href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      td.appendChild(a);
+      if (trailing) {
+        td.appendChild(document.createTextNode(trailing));
+      }
+      last = match.index + match[0].length;
+    }
+    if (last < text.length) {
+      td.appendChild(document.createTextNode(text.slice(last)));
+    }
+    if (!td.childNodes.length) {
+      td.textContent = text;
+    }
+  }
+
   function buildFrontmatterBlock(raw, fields) {
     const details = document.createElement("details");
     details.className = "md-frontmatter";
@@ -1119,7 +1169,7 @@
         const th = document.createElement("th");
         th.textContent = field.key;
         const td = document.createElement("td");
-        td.textContent = field.value;
+        fillFrontmatterValue(td, field.value);
         tr.appendChild(th);
         tr.appendChild(td);
         tbody.appendChild(tr);

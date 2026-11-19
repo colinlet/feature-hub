@@ -30,6 +30,8 @@ from hub_lib import (
     read_tasks_index,
     resolve_viewer,
     safe_join,
+    task_git_checkout,
+    task_git_status,
     update_dir_paths,
     update_task_workspace,
     validate_dir_path,
@@ -177,6 +179,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_error_json(HTTPStatus.NOT_FOUND, str(exc))
             return
 
+        if path == "/api/task/git-status":
+            root_id, _, root_kind = self._resolve_root(query)
+            try:
+                self._send_json(
+                    task_git_status(self.config, root_id, root_kind or None)
+                )
+            except ValueError as exc:
+                self._send_error_json(HTTPStatus.NOT_FOUND, str(exc))
+            return
+
         if path == "/api/ls":
             root_id, root_path, root_kind = self._resolve_root(query)
             rel = (query.get("path") or [""])[0]
@@ -312,6 +324,21 @@ class Handler(BaseHTTPRequestHandler):
                 result = open_task_in_cursor(
                     self.config,
                     str(body.get("root") or body.get("task") or ""),
+                    root_kind=body.get("kind") or body.get("rootKind"),
+                )
+            except ValueError as exc:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
+                return
+            self._send_json(result)
+            return
+
+        if path == "/api/task/git-checkout":
+            try:
+                result = task_git_checkout(
+                    self.config,
+                    str(body.get("root") or body.get("task") or ""),
+                    str(body.get("path") or ""),
+                    str(body.get("branch") or ""),
                     root_kind=body.get("kind") or body.get("rootKind"),
                 )
             except ValueError as exc:
